@@ -677,6 +677,11 @@ body {
   display: flex; align-items: center; justify-content: center;
 }
 #gate[hidden] { display: none; }
+
+/* 認証が済むまでアプリ本体は存在ごと非表示（開発者ツールでゲートを消しても中身が出ない） */
+body:not(.authed) .page-header,
+body:not(.authed) .tab-panel,
+body:not(.authed) .mobile-savebar { display: none !important; }
 .gate-box {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -1418,6 +1423,8 @@ function submitGate() {
 
 /* --- サーバーの {latest, versions} を画面へ反映 --- */
 function applyServerState(res) {
+  buildAppUI();                 // 認証OK。ここで初めて画面を組み立てる
+  refresh();                    // カレンダー・入力欄を生成
   SYNC.versions = res.versions || [];
   fillVersionSelect(SYNC.versions);
   if (res.latest) {
@@ -1582,16 +1589,19 @@ function serverSave(force) {
 /* ============================================================
   INIT
   ============================================================ */
+// 認証が済むまで画面は組み立てない（開発者ツールでゲートを消しても中身が無い状態にする）
 initSelectors();
-refresh();
 restoreEditor();
 document.getElementById('editorName').addEventListener('change', rememberEditor);
 document.getElementById('gatePw').focus();
-fitArtboard();
 
-// Webフォント読み込み完了後に再描画（初回表示のちらつき・ズレ防止）
-if (document.fonts && document.fonts.ready) {
-  document.fonts.ready.then(() => { renderCalendar(); fitArtboard(); });
+// 認証成功後に呼ばれる（applyServerState 内から）
+function buildAppUI() {
+  document.body.classList.add('authed');
+  fitArtboard();
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(() => { renderCalendar(); fitArtboard(); });
+  }
 }
 </script>
 </body>
