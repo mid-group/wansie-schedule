@@ -446,14 +446,19 @@ details.fold > .fold-body { padding: 0 16px 16px; }
 .row-date td:not(.label-cell) { background: #f0f0f0; }
 
 /* イベント帯 */
-.cal-table td.ev-cell { text-align: center; padding: 2px 6px; position: relative; }
+.cal-table td.ev-cell { text-align: center; padding: 2px 6px; position: relative; overflow: visible; background: transparent; }
+/* 帯の塗りと枠線は、セルの上に重ねた1枚の板（.ev-frame）で描く。
+   板を罫線の太さ（--ev-bleed）の分だけ外へ広げて周りの罫線（上の点線も）を覆い、
+   選択したときの縁取りと同じように四辺ぴったりに塗る。罫線より外にははみ出さない */
 .ev-frame {
-  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-  border-width: var(--ev-border-width); border-style: solid; pointer-events: none;
+  position: absolute; z-index: 1; pointer-events: none;
+  top: calc(var(--ev-bleed) * -1); left: calc(var(--ev-bleed) * -1);
+  right: calc(var(--ev-bleed) * -1); bottom: calc(var(--ev-bleed) * -1);
+  border: var(--ev-border-width) solid transparent;
 }
 /* 帯の文字の上下を目で見てそろえる微調整（Jost は文字の下側に余白が多めに付くため）。
    画面表示と画像書き出し（html2canvas）で文字の置き方がわずかに違うので、それぞれ実測値で補正 */
-.ev-inner { display: block; position: relative; }
+.ev-inner { display: block; position: relative; z-index: 2; }
 body:not(.capturing) .ev-cell.solo .ev-inner    { top: -0.17px; }
 body:not(.capturing) .ev-cell.has-sub .ev-inner { top: -0.53px; }
 body.capturing .ev-cell.solo .ev-inner           { top: -0.9px; }
@@ -464,17 +469,19 @@ body.capturing .ev-cell.has-sub .ev-inner        { top: -0.75px; }
 }
 .ev-sub { display: block; font-family: var(--font-mixed); font-weight: 400; font-size: 9px; line-height: 1.15; margin-top: 1px; }
 /* 数字の間の記号（14–19 の –、14:00~20:00 の : と ~）は、この書体だと数字より少し下に来るので数字の中心にそろえる */
-.sym { position: relative; top: -0.115em; }
-/* 帯の枠線はセルの内側に描く（表の罫線と重なって切れないように）。
-   画面では 1px、画像書き出し時は 0.3px（PNGでは1.5px相当） */
-#artboard { --ev-border-width: 1px; }
-body.capturing #artboard { --ev-border-width: 0.3px; }
+.sym { position: relative; top: -0.07em; }
+/* 帯の枠線の太さ：画面では 1px、画像書き出し時は 0.3px（PNGでは1.5px相当）。
+   --ev-bleed は罫線を覆う広げ幅：画面は罫線の表示幅（1px）、書き出しは罫線の実寸 */
+#artboard { --ev-border-width: 1px; --ev-bleed: 1px; }
+body.capturing #artboard { --ev-border-width: 0.3px; --ev-bleed: var(--cal-border-width); }
 
 /* プレビュー上のクリック目印（画像保存中は消す） */
 body:not(.capturing) #calTable td[data-day],
 body:not(.capturing) #calTable td[data-ev] { cursor: pointer; }
 body:not(.capturing) #calTable td[data-day]:hover,
 body:not(.capturing) #calTable td[data-ev]:hover { outline: 1px solid #1a1a1a; outline-offset: -1px; }
+/* 帯は塗りの板が上に乗るので、選択の縁取りは板の内側に出す */
+body:not(.capturing) #calTable td[data-ev]:hover .ev-frame { box-shadow: inset 0 0 0 1px #1a1a1a; }
 /* ドラッグで帯を作るときの選択範囲 */
 #calTable td.drag-sel { background-color: #d9d9d9 !important; outline: 1px solid #1a1a1a; outline-offset: -1px; }
 #calTable { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
@@ -1562,11 +1569,10 @@ function eventCell(ev, i, firstDay, colspan, rowspan) {
   const sub = trimText(ev.sub);
   const bg = safeColor(ev.bg), fg = safeColor(ev.color), bd = safeColor(ev.border);
   const ts = safeSize(ev.titleSize) || EV_TITLE_DEFAULT, ss = safeSize(ev.subSize) || EV_SUB_DEFAULT;
-  let tdStyle = 'background:' + (bg || 'transparent') + ';';
-  // 枠線は表の罫線（border-collapse）に負けて切れるので、セルの内側に重ねた枠（.ev-frame）で描く
-  const frame = bd ? `<span class="ev-frame" style="border-color:${bd};"></span>` : '';
+  // 塗りと枠線はセルに重ねた板（.ev-frame）で描く。背景「なし」は白で塗って、下の罫線や点線を隠す
+  const frame = `<span class="ev-frame" style="background:${bg || '#ffffff'};border-color:${bd || 'transparent'};"></span>`;
   const color = fg ? `color:${fg};` : 'color:#1a1a1a;';
-  return `<td class="ev-cell${rowspan > 1 ? ' span2' : ''}${sub ? ' has-sub' : ' solo'}" data-ev="${i}" colspan="${colspan}"${rowspan > 1 ? ' rowspan="2"' : ''} style="${tdStyle}">` + frame +
+  return `<td class="ev-cell${rowspan > 1 ? ' span2' : ''}${sub ? ' has-sub' : ' solo'}" data-ev="${i}" colspan="${colspan}"${rowspan > 1 ? ' rowspan="2"' : ''}>` + frame +
          `<span class="ev-inner"><span class="ev-title" style="${color}font-size:${ts}px;">${fmtText(title)}</span>` +
          (sub ? `<span class="ev-sub" style="${color}font-size:${ss}px;">${fmtText(sub)}</span>` : '') +
          `</span></td>`;
