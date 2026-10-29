@@ -13,7 +13,7 @@
   ============================================================ -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Jost:wght@100;300;400;500;600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@100;200;300;400;500;600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
 
 <!-- ============================================================
   WANSIE SHOP SCHEDULE GENERATOR
@@ -197,11 +197,13 @@ button { cursor: pointer; }
   align-items: start;
 }
 .preview-col { position: sticky; top: calc(var(--header-h) + 20px); min-width: 0; }
+.preview-col.no-sticky { position: static; }  /* 画面が低くて縮めても入らないときは追従しない */
 .preview-hint { font-size: 11px; color: var(--color-text-faint); margin-top: 10px; text-align: center; letter-spacing: 0.04em; }
 
 .panel-tabs {
   display: flex; border-bottom: 1px solid var(--color-line); margin-bottom: 18px;
   background: #fff;
+  position: sticky; top: var(--header-h); z-index: 200; /* 下までスクロールしてもタブがついてくる */
 }
 .panel-tab {
   flex: 1; height: 44px; border: none; background: none;
@@ -757,7 +759,7 @@ body.entering .help-fab      { animation: riseIn 0.4s ease-out 0.3s both; }
             <button class="icon-btn" id="undoBtn" onclick="undo()" disabled title="1つ戻す（⌘Z / Ctrl+Z）"><svg class="ic" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M5 3 2 6l3 3"/><path d="M2 6h7.5a4 4 0 0 1 0 8H7"/></svg>戻す</button>
             <button class="icon-btn" id="redoBtn" onclick="redo()" disabled title="1つ進む（⇧⌘Z / Ctrl+Y）"><svg class="ic" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="m11 3 3 3-3 3"/><path d="M14 6H6.5a4 4 0 0 0 0 8H9"/></svg>進む</button>
           </div>
-          <p class="preview-hint" id="previewHint">タップで編集 ／ 日付をドラッグで帯を作成</p>
+          <p class="preview-hint" id="previewHint">日付をクリックで編集 ／ ドラッグで帯を作成</p>
         </div>
         <div class="artboard-viewport">
           <div id="artboard">
@@ -923,7 +925,8 @@ body.entering .help-fab      { animation: riseIn 0.4s ease-out 0.3s both; }
         <dt class="c-close">CLOSE</dt><dd>定休（赤）。両方 CLOSE の日は1つにまとまる</dd>
         <dt class="c-special">貸切営業</dt><dd>数字以外で始まる → 特記（緑）</dd>
         <dt>Enter</dt><dd>改行</dd>
-        <dt>Aa</dt><dd>その日の文字色・背景色・サイズ</dd>
+        <dt>クリック</dt><dd>プレビューの日付や時間をクリック → その日の編集が開く<small>スマホはタップ</small></dd>
+        <dt>Aa</dt><dd>入力欄の「Aa」からも、その日の文字色・背景色・サイズを変えられる</dd>
       </dl>
       <p class="help-tip">まとめて変えるときは「まとめて編集」→ 曜日などで日付を選ぶ</p>
     </section>
@@ -933,6 +936,7 @@ body.entering .help-fab      { animation: riseIn 0.4s ease-out 0.3s both; }
       <ul class="help-list">
         <li><b>プレビューの日付をドラッグ</b>すると、その期間で帯ができる<small>スマホは長押ししてからなぞる</small></li>
         <li>APPAREL から BAR へまたいでなぞると<b>両方の行</b>の帯</li>
+        <li>できた<b>帯をクリック</b>すると、文字・期間・色を直せる</li>
         <li>「イベント帯」タブの<b>＋ 帯を追加</b>からも作れる</li>
         <li>週をまたぐと自動で分割（続きの文字も指定可）</li>
         <li>重なったときは一覧の上の帯が優先</li>
@@ -1033,8 +1037,16 @@ function openHelp() {
   openSheet('HOW TO USE', '使い方', [tpl.content.cloneNode(true)], [button('閉じる', 'btn-primary btn-sm', closeSheet)], true);
 }
 function switchPane(name) {
+  // 下のほうでタブを押したときは、切り替えた先の先頭が見える位置まで戻す（短いタブで画面が空にならないように）
+  const tabs = document.querySelector('.panel-tabs');
+  const headerH = document.querySelector('.page-header').offsetHeight;
+  const stuck = tabs.getBoundingClientRect().top <= headerH + 1;
   document.querySelectorAll('.pane').forEach(p => p.classList.toggle('active', p.id === 'pane-' + name));
   document.querySelectorAll('.panel-tab').forEach(b => b.classList.toggle('active', b.dataset.pane === name));
+  if (stuck) {
+    const anchor = document.querySelector('.editor-col');
+    window.scrollTo({ top: anchor.getBoundingClientRect().top + window.scrollY - headerH, behavior: 'auto' });
+  }
 }
 
 /* ============================================================
@@ -1796,22 +1808,40 @@ calEl.addEventListener('click', function(e) {
   else if (td.dataset.day) openDayEditor(parseInt(td.dataset.day), td.dataset.row);
 });
 if (window.matchMedia('(pointer: coarse)').matches) {
-  document.getElementById('previewHint').textContent = 'タップで編集 ／ 長押ししてなぞると帯を作成';
+  document.getElementById('previewHint').textContent = '日付をタップで編集 ／ 長押ししてなぞると帯を作成';
 }
 
 /* ============================================================
   FIT PREVIEW — プレビューを列幅に合わせて縮小表示（PNG出力は原寸）
+  PC（横並びでプレビューが追従するとき）は、画面の高さにも収まるように縮める。
+  縮めすぎると読めないので下限を設け、それでも入らない低い画面では追従をやめて普通にスクロールさせる
   ============================================================ */
+const PREVIEW_MIN_SCALE = 0.5;
 function fitArtboard() {
   const vp = document.querySelector('.artboard-viewport');
   const ab = document.getElementById('artboard');
+  const col = document.getElementById('previewCol');
   if (!vp || !ab) return;
   ab.style.transform = 'none';
   vp.style.width = ''; vp.style.height = '';
   const natural = 860;
   const parentW = (vp.parentElement && vp.parentElement.clientWidth) || natural;
   if (!parentW) return; // 非表示中
-  const scale = Math.min(1, (parentW - 2) / natural);
+  let scale = Math.min(1, (parentW - 2) / natural);
+
+  const sideBySide = window.matchMedia('(min-width: 1101px)').matches;
+  col.classList.remove('no-sticky');
+  if (sideBySide) {
+    const headerH = document.querySelector('.page-header').offsetHeight;
+    const tools = document.querySelector('.preview-tools');
+    const toolsH = tools ? tools.offsetHeight + 10 : 0;
+    const avail = window.innerHeight - headerH - 20 - toolsH - 20; // 上の余白20 / 下の余白20
+    const hScale = (avail - 2) / ab.offsetHeight;
+    if (hScale < scale) {
+      if (hScale >= PREVIEW_MIN_SCALE) scale = hScale;
+      else col.classList.add('no-sticky');
+    }
+  }
   ab.style.transform = 'scale(' + scale + ')';
   vp.style.width  = (natural * scale + 2) + 'px';
   vp.style.height = (ab.offsetHeight * scale + 2) + 'px';
@@ -1833,7 +1863,7 @@ async function saveImage() {
     if (document.fonts && document.fonts.ready) {
       try {
         await Promise.all([
-          document.fonts.load('300 32px "Jost"'),
+          document.fonts.load('200 32px "Jost"'),
           document.fonts.load('300 78px "Jost"'),
           document.fonts.load('400 18px "Jost"'),
           document.fonts.load('500 16px "Jost"'),
