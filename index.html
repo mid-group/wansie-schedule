@@ -419,11 +419,12 @@ details.fold > .fold-body { padding: 0 16px 16px; }
 
 .date-num {
   display: block; font-size: var(--cal-date-size); font-weight: 400; color: var(--color-brand);
-  padding: 11px 8px 8px; font-family: var(--font-display); text-align: center; line-height: 1; overflow: hidden;
+  padding: 10px 8px 9px; font-family: var(--font-display); text-align: center; line-height: 1; overflow: hidden;
 }
 .row-label {
   display: block; font-size: 12px; font-weight: 400; letter-spacing: 0.06em; color: #b0b0ac;
   font-family: var(--font-display); text-align: right; padding-right: 14px;
+  position: relative; top: 0.4px; /* 隣の時間の文字と高さをそろえる微調整 */
 }
 .time-val {
   display: block; font-size: var(--cal-time-size); color: var(--c-time);
@@ -445,7 +446,7 @@ details.fold > .fold-body { padding: 0 16px 16px; }
 .row-date td:not(.label-cell) { background: #f0f0f0; }
 
 /* イベント帯 */
-.cal-table td.ev-cell { text-align: center; padding: 5px 6px; position: relative; }
+.cal-table td.ev-cell { text-align: center; padding: 2px 6px; position: relative; }
 .ev-frame {
   position: absolute; top: 0; left: 0; right: 0; bottom: 0;
   border-width: var(--ev-border-width); border-style: solid; pointer-events: none;
@@ -453,15 +454,17 @@ details.fold > .fold-body { padding: 0 16px 16px; }
 /* 帯の文字の上下を目で見てそろえる微調整（Jost は文字の下側に余白が多めに付くため）。
    画面表示と画像書き出し（html2canvas）で文字の置き方がわずかに違うので、それぞれ実測値で補正 */
 .ev-inner { display: block; position: relative; }
-body:not(.capturing) .ev-cell.solo .ev-inner    { top: 0.25px; }
-body:not(.capturing) .ev-cell.has-sub .ev-inner { top: -0.3px; }
-body.capturing .ev-cell.solo .ev-inner           { top: -0.15px; }
+body:not(.capturing) .ev-cell.solo .ev-inner    { top: -0.17px; }
+body:not(.capturing) .ev-cell.has-sub .ev-inner { top: -0.53px; }
+body.capturing .ev-cell.solo .ev-inner           { top: -0.9px; }
 body.capturing .ev-cell.has-sub .ev-inner        { top: -0.75px; }
 .ev-title {
-  display: block; font-family: var(--font-mixed); font-weight: 500; font-size: 15px;
-  letter-spacing: 0.03em; line-height: 1.15; word-break: break-word;
+  display: block; font-family: var(--font-mixed); font-weight: 500; font-size: 11px;
+  letter-spacing: 0.03em; line-height: 1.1; word-break: break-word;
 }
-.ev-sub { display: block; font-family: var(--font-mixed); font-weight: 400; font-size: 9px; line-height: 1.25; margin-top: 2px; }
+.ev-sub { display: block; font-family: var(--font-mixed); font-weight: 400; font-size: 9px; line-height: 1.15; margin-top: 1px; }
+/* 数字の間の記号（14–19 の –、14:00~20:00 の : と ~）は、この書体だと数字より少し下に来るので数字の中心にそろえる */
+.sym { position: relative; top: -0.115em; }
 /* 帯の枠線はセルの内側に描く（表の罫線と重なって切れないように）。
    画面では 1px、画像書き出し時は 0.3px（PNGでは1.5px相当） */
 #artboard { --ev-border-width: 1px; }
@@ -998,7 +1001,7 @@ const SWATCHES = ['#1a1a1a', '#ffffff', '#5b2c26', '#2a4a9b', '#1f2a5c', '#c0392
 
 const THEME_DEFAULT = { close: '#c0392b', time: '#1a1a1a', special: '#27ae60', line: '#e0e0de', mergeClose: true };
 const TIME_SIZE_DEFAULT = 13;
-const EV_TITLE_DEFAULT = 15;
+const EV_TITLE_DEFAULT = 11;
 const EV_SUB_DEFAULT = 9;
 
 /* ============================================================
@@ -1024,7 +1027,12 @@ function escHtml(s) {
     return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
   });
 }
-function fmtText(s) { return escHtml(s).replace(/\n/g, '<br>'); }
+// 数字にはさまれた - – — − ~ : だけを持ち上げる（日本語の「ー」「〜」などはそのまま）
+function fmtText(s) {
+  return escHtml(s)
+    .replace(/(\d)([ \u00a0]*)([-\u2010-\u2015\u2212~:])(?=[ \u00a0]*\d)/g, '$1$2<span class="sym">$3</span>')
+    .replace(/\n/g, '<br>');
+}
 function trimText(s) { return String(s || '').replace(/^[ \t\r\n]+|[ \t\r\n]+$/g, ''); }
 function isClose(v) { return trimText(v).toUpperCase() === 'CLOSE'; }
 function isSpecial(v) { v = trimText(v); return v !== '' && !isClose(v) && !/^\d/.test(v); }
