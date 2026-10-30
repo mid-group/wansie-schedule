@@ -109,7 +109,12 @@ button { cursor: pointer; }
   font-family: var(--font-display); font-size: 11px; font-weight: 400;
   letter-spacing: 0.3em; color: var(--color-text-faint); white-space: nowrap;
 }
-.tab-nav { display: flex; gap: 22px; }
+.tab-nav { display: flex; align-items: center; gap: 22px; }
+/* 保存・書き出しのメニューを開くボタン（PCはヘッダー右、スマホは画面下のバー）。未保存の変更があると赤い点 */
+.save-open { position: relative; }
+.save-open.is-dirty::after {
+  content: ''; position: absolute; top: 5px; right: 5px; width: 7px; height: 7px; border-radius: 50%; background: var(--color-accent);
+}
 .tab-btn {
   font-size: 12px; letter-spacing: 0.12em;
   padding: 6px 0; border: none; background: none;
@@ -135,7 +140,7 @@ button { cursor: pointer; }
 .control-strip {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  gap: 14px 28px;
+  gap: 14px 24px;
   align-items: end;
   padding-bottom: 22px;
   margin-bottom: 26px;
@@ -183,7 +188,9 @@ button { cursor: pointer; }
 .btn-danger { border-color: var(--color-accent); color: var(--color-accent); }
 .btn-danger:hover { background: var(--color-accent); color: #fff; }
 
-.sync-status { grid-column: 1 / -1; font-size: 12px; color: var(--color-text-muted); }
+.sync-status { font-size: 12px; color: var(--color-text-muted); align-self: center; padding-top: 18px; }
+/* 名前・メモ・版・保存・画像の書き出しは「保存・書き出し」メニューにまとめた（要素は値の受け渡し用に残す） */
+.month-picker #saveBtn, .sync-fields { display: none !important; }
 .sync-status.is-error, .sync-status.is-dirty { color: var(--color-accent); }
 .sync-status.is-ok { color: var(--color-text); }
 
@@ -251,9 +258,12 @@ details.fold > .fold-body { padding: 0 16px 16px; }
 /* 日別入力 */
 .input-grid-header, .input-row {
   display: grid;
-  grid-template-columns: 22px 58px minmax(0, 1fr) minmax(0, 1fr) 38px;
+  grid-template-columns: 58px minmax(0, 1fr) minmax(0, 1fr) 38px;
   gap: 6px; align-items: start;
 }
+/* 日付を選ぶチェックは「まとめて編集」を開いている間だけ */
+body.bulk-on .input-grid-header, body.bulk-on .input-row { grid-template-columns: 22px 58px minmax(0, 1fr) minmax(0, 1fr) 38px; }
+body:not(.bulk-on) .input-grid-header span:first-child, body:not(.bulk-on) .row-check { display: none; }
 .input-grid-header { padding: 0 0 6px; border-bottom: 1px solid var(--color-line); margin-bottom: 4px; }
 .input-grid-header span { font-family: var(--font-display); font-size: 9px; letter-spacing: 0.24em; color: var(--color-text-faint); text-align: center; }
 .input-row { padding: 5px 0; border-bottom: 1px solid var(--color-line-soft); }
@@ -562,8 +572,14 @@ body:not(.authed) .mobile-savebar { display: none !important; }
 .save-menu .sm-status.is-dirty { color: var(--color-accent); }
 .save-menu .field { display: grid; gap: 4px; }
 .save-menu .ui-input { width: 100%; }
-.save-menu .sm-actions { display: grid; gap: 10px; margin-top: 4px; }
-.save-menu .sm-actions .btn { width: 100%; height: 48px; font-size: 13px; letter-spacing: 0.16em; }
+.save-menu { gap: 0; }
+.save-menu .sm-sec { display: grid; gap: 12px; padding: 18px 0; border-top: 1px solid var(--color-line); }
+.save-menu .sm-status + .sm-sec { margin-top: 12px; }
+.save-menu .sm-head .help-num { margin-right: 10px; }
+.save-menu .sm-head { font-size: 13px; font-weight: 500; letter-spacing: 0.04em; }
+.save-menu .sm-head small { display: block; margin-top: 3px; font-size: 11px; font-weight: 400; color: var(--color-text-faint); letter-spacing: 0; }
+.save-menu .sm-big { width: 100%; height: 48px; font-size: 13px; letter-spacing: 0.12em; }
+.save-menu .ui-select { width: 100%; }
 
 /* スマホ用：仕上がり確認（大きく表示して、そのまま日付をタップして編集できる） */
 .pv-fab { display: none; }
@@ -670,6 +686,7 @@ body.entering .help-fab      { animation: riseIn 0.4s ease-out 0.3s both; }
   .brand-sub { display: none; }
   .header-logo { height: 12px; }
   .tab-nav { gap: 16px; }
+  .control-strip { grid-template-columns: minmax(0, 1fr); }
   .tab-btn { font-size: 11px; letter-spacing: 0.06em; }
   .container { padding: 16px 14px calc(96px + env(safe-area-inset-bottom)); }
 
@@ -698,20 +715,28 @@ body.entering .help-fab      { animation: riseIn 0.4s ease-out 0.3s both; }
   .sw, .sw-pick { width: 34px; height: 34px; }
   .sw-none { height: 34px; }
 
-  /* 日別入力：1日 = 2段（見出し / APPAREL・BAR） */
-  .input-grid-header { display: none; }
-  .input-row {
-    grid-template-columns: 26px minmax(0, 1fr) minmax(0, 1fr) 44px;
-    grid-template-areas: "chk day day deco" "app app bar bar";
-    gap: 6px 8px; padding: 10px 0;
+  /* 日別入力：1日 = 1行（日付 / APPAREL / BAR / Aa）。列の見出しはタブの下に固定。
+     選択のチェックは「まとめて編集」を開いている間だけ出す */
+  .input-grid-header, .input-row { grid-template-columns: 30px minmax(0, 1fr) minmax(0, 1fr) 40px; gap: 6px; }
+  body.bulk-on .input-grid-header, body.bulk-on .input-row { grid-template-columns: 22px 30px minmax(0, 1fr) minmax(0, 1fr) 40px; }
+  .input-grid-header {
+    position: sticky; top: calc(var(--header-h) + var(--tabs-h, 46px)); z-index: 150;
+    background: #fff; padding: 6px 0 6px; margin: -8px 0 0;
   }
-  .input-row .row-check { grid-area: chk; width: 20px; height: 20px; margin: 4px 0 0; }
-  .input-row .day-label { grid-area: day; text-align: left; font-size: 16px; padding-top: 4px; }
-  .input-row .io-app { grid-area: app; }
-  .input-row .io-bar { grid-area: bar; }
-  .input-row .deco-btn { grid-area: deco; height: 34px; width: 44px; }
-  .io { display: block; }
-  .io-tag { display: block; font-family: var(--font-display); font-size: 9px; letter-spacing: 0.24em; color: var(--color-text-faint); margin-bottom: 3px; }
+  .input-row { padding: 6px 0; align-items: center; }
+  .input-row .row-check { width: 20px; height: 20px; margin: 0; }
+  .input-row .day-label { text-align: left; font-size: 15px; line-height: 1.1; padding: 0; }
+  .input-row .day-label small { display: block; margin: 1px 0 0; font-size: 9px; }
+  .input-row .deco-btn { height: 40px; width: 40px; }
+  .input-row .time-input { min-height: 40px; padding: 8px; }
+
+  /* 上の操作列は年・月だけ。名前・メモ・版・画像の書き出しは、画面下の「保存・書き出し」にまとめる */
+  .sync-status, #headerSaveBtn { display: none; }
+  .control-strip { padding-bottom: 14px; margin-bottom: 14px; }
+  /* プレビューは「見る」用。タップすると大きく表示して編集（戻す・進むは画面下のバーにある） */
+  .preview-tools .history-btns { display: none; }
+  .preview-tools { margin-bottom: 6px; }
+  .preview-tools .preview-hint { margin-top: 0; text-align: left; }
 
   /* シートは下から */
   .sheet-panel {
@@ -736,17 +761,19 @@ body.entering .help-fab      { animation: riseIn 0.4s ease-out 0.3s both; }
     border: none; border-radius: 0; background: var(--color-text); color: #fff;
   }
   .mobile-savebar button:disabled { opacity: 0.5; }
+  #mobileSaveBtn { position: relative; display: flex; align-items: center; gap: 6px; padding: 0 16px; letter-spacing: 0.1em; }
+
   .mobile-savebar button.mb-icon {
     width: 40px; padding: 0; background: #fff; color: var(--color-text);
     border: 1px solid var(--color-line); font-family: var(--font-display); font-size: 17px; letter-spacing: 0;
   }
   .mobile-savebar button.mb-icon:disabled { opacity: 0.3; }
 
-  .help-fab { right: 14px; bottom: calc(78px + env(safe-area-inset-bottom)); width: 42px; height: 42px; font-size: 18px; }
-  /* 仕上がり確認ボタン（プレビューが画面から外れたときだけ、? の左に出る） */
+  .help-fab { display: none !important; }  /* スマホは右上の「使い方」から（右下は「仕上がり」だけにする） */
+  /* 仕上がり確認ボタン（プレビューが画面から外れたときだけ右下に出る） */
   .pv-fab {
     display: flex; align-items: center; gap: 7px;
-    position: fixed; right: 66px; bottom: calc(78px + env(safe-area-inset-bottom)); z-index: 600;
+    position: fixed; right: 14px; bottom: calc(78px + env(safe-area-inset-bottom)); z-index: 600;
     height: 42px; padding: 0 16px; border-radius: 21px;
     border: 1px solid var(--color-text); background: var(--color-text); color: #fff;
     font-size: 12px; letter-spacing: 0.08em; box-shadow: 0 2px 10px rgba(0,0,0,0.12);
@@ -788,6 +815,7 @@ body.entering .help-fab      { animation: riseIn 0.4s ease-out 0.3s both; }
   </div>
   <nav class="tab-nav">
     <button class="tab-btn" onclick="openHelp()">使い方</button>
+    <button class="btn btn-primary btn-sm save-open" id="headerSaveBtn" onclick="openSaveMenu()" title="保存・書き出し（⌘S / Ctrl+S）">保存・書き出し</button>
   </nav>
 </header>
 <div class="demo-banner" id="demoBanner" hidden>テストモード：保存はこのブラウザの中だけに残ります（本番のデータには影響しません）</div>
@@ -960,7 +988,7 @@ body.entering .help-fab      { animation: riseIn 0.4s ease-out 0.3s both; }
   <button class="mb-icon" id="mUndoBtn" onclick="undo()" disabled aria-label="1つ戻す"><svg class="ic" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M5 3 2 6l3 3"/><path d="M2 6h7.5a4 4 0 0 1 0 8H7"/></svg></button>
   <button class="mb-icon" id="mRedoBtn" onclick="redo()" disabled aria-label="1つ進む"><svg class="ic" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="m11 3 3 3-3 3"/><path d="M14 6H6.5a4 4 0 0 0 0 8H9"/></svg></button>
   <span id="mobileSaveStatus">読み込み中…</span>
-  <button id="mobileSaveBtn" onclick="openSaveMenu()">SAVE</button>
+  <button id="mobileSaveBtn" class="save-open" onclick="openSaveMenu()">保存・書き出し<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="m2 6.5 3-3 3 3"/></svg></button>
 </div>
 
 <!-- スマホ用：仕上がり確認ボタン（追従）と、大きく表示する画面 -->
@@ -998,8 +1026,8 @@ body.entering .help-fab      { animation: riseIn 0.4s ease-out 0.3s both; }
       <ol class="help-flow">
         <li><b>年・月</b>を選ぶ</li>
         <li>営業時間・帯・色を<b>編集</b></li>
-        <li><b>Editor</b>に名前を入れて<b>保存</b><small>スマホは画面下の SAVE（名前・メモ・画像の書き出しもここ）</small></li>
-        <li><b>画像を書き出す</b><small>4300×4300px の PNG</small></li>
+        <li><b>保存・書き出し</b>を開いて、名前を入れて<b>保存</b><small>PCは右上、スマホは画面下。⌘S / Ctrl+S でも開く</small></li>
+        <li>同じメニューで<b>画像を書き出す</b><small>4300×4300px の PNG</small></li>
       </ol>
       <p class="help-tip">間違えたら「戻す」（⌘Z ／ Ctrl+Z）。「進む」でやり直し</p>
     </section>
@@ -1027,7 +1055,7 @@ body.entering .help-fab      { animation: riseIn 0.4s ease-out 0.3s both; }
         <li>週をまたぐと自動で分割（続きの文字も指定可）</li>
         <li>重なったときは一覧の上の帯が優先</li>
       </ul>
-      <p class="help-tip">スマホは右下の「仕上がり」で大きく表示。そのまま日付をタップして編集できる</p>
+      <p class="help-tip">スマホはカレンダーをタップ（下のほうでは右下の「仕上がり」）で大きく表示。そのまま日付をタップして編集できる</p>
     </section>
 
     <section class="help-sec">
@@ -1042,7 +1070,7 @@ body.entering .help-fab      { animation: riseIn 0.4s ease-out 0.3s both; }
       <div class="help-head"><span class="help-num">05</span>みんなで使うとき</div>
       <ul class="help-list">
         <li>保存するたびに<b>新しい版</b>になる（上書きされない）</li>
-        <li>間違えたら Version で前の版を開き、もう一度保存</li>
+        <li>間違えたら「保存・書き出し」の「前の版を開く」で戻し、もう一度保存</li>
         <li>「先に保存しています」と出たら<b>キャンセル</b>で最新を読み込み直す</li>
         <li>1つの月は1人が担当すると安心</li>
       </ul>
@@ -1485,6 +1513,13 @@ function openSheet(eyebrow, title, bodyEls, footEls, noScroll) {
   }
 }
 function closeSheet() { document.getElementById('sheet').hidden = true; }
+// ⌘S / Ctrl+S で保存・書き出しメニュー（ブラウザの「ページを保存」の代わり）
+document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && (e.key === 's' || e.key === 'S') && document.body.classList.contains('authed')) {
+    e.preventDefault();
+    openSaveMenu();
+  }
+});
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
   if (!document.getElementById('sheet').hidden) closeSheet();
@@ -1866,8 +1901,10 @@ document.addEventListener('mousemove', function(e) {
 });
 document.addEventListener('mouseup', function() { if (DRAG.active && !DRAG.isTouch) dragEnd(); });
 
+function isSP() { return window.matchMedia('(max-width: 720px)').matches; }
 calEl.addEventListener('touchstart', function(e) {
   if (e.touches.length !== 1) return;
+  if (isSP() && !PV.open) return; // スマホの小さいプレビューでは帯を作らない（タップで大きい表示へ）
   const c = cellInfo(e.target);
   if (!c) return;
   const t = e.touches[0];
@@ -1898,6 +1935,8 @@ calEl.addEventListener('touchcancel', function() { clearTimeout(DRAG.lpTimer); D
 calEl.addEventListener('click', function(e) {
   if (DRAG.suppressClick) { DRAG.suppressClick = false; return; }
   const td = e.target.closest('td');
+  // スマホの小さいプレビューをタップしたら、大きい表示に切り替えてから編集を開く
+  if (isSP() && !PV.open) openPreviewModal();
   if (!td) return;
   if (td.dataset.ev !== undefined) openEventEditor(parseInt(td.dataset.ev));
   else if (td.dataset.day) openDayEditor(parseInt(td.dataset.day), td.dataset.row);
@@ -1906,6 +1945,11 @@ calEl.addEventListener('click', function(e) {
 if (window.matchMedia('(pointer: coarse)').matches) {
   document.getElementById('previewHint').textContent = '日付をタップで編集 ／ 長押ししてなぞると帯を作成';
 }
+function updatePreviewHint() {
+  if (isSP()) document.getElementById('previewHint').textContent = 'タップすると大きく表示して編集できます';
+}
+updatePreviewHint();
+window.addEventListener('resize', updatePreviewHint);
 
 /* ============================================================
   FIT PREVIEW — プレビューを列幅に合わせて縮小表示（PNG出力は原寸）
@@ -2132,6 +2176,7 @@ function setStatus(msg, cls) {
   }
   const sm = document.getElementById('smStatus');
   if (sm) { sm.textContent = msg; sm.className = 'sm-status' + ((cls === 'is-error' || cls === 'is-dirty') ? ' is-dirty' : ''); }
+  document.querySelectorAll('.save-open').forEach(b => b.classList.toggle('is-dirty', cls === 'is-dirty'));
   const m = document.getElementById('mobileSaveStatus');
   if (m) {
     m.textContent = msg;
@@ -2322,15 +2367,16 @@ function serverSave(force) {
   const mbtn = document.getElementById('mobileSaveBtn');
   const sbtn = document.getElementById('smSaveBtn');
   btn.disabled = true; btn.textContent = '保存中…';
-  if (mbtn) { mbtn.disabled = true; mbtn.textContent = '…'; }
+  const mbtnHtml = mbtn ? mbtn.innerHTML : '';
+  if (mbtn) { mbtn.disabled = true; mbtn.textContent = '保存中…'; }
   if (sbtn) { sbtn.disabled = true; sbtn.textContent = '保存中…'; }
   setStatus('保存中…', '');
   const p = collectPayloadData();
   const snapshot = JSON.stringify(p);
   function resetSaveBtns() {
     btn.disabled = false; btn.textContent = 'サーバーに保存';
-    if (mbtn) { mbtn.disabled = false; mbtn.textContent = 'SAVE'; }
-    if (sbtn && sbtn.isConnected) { sbtn.disabled = false; sbtn.textContent = 'サーバーに保存'; }
+    if (mbtn) { mbtn.disabled = false; mbtn.innerHTML = mbtnHtml; }
+    if (sbtn && sbtn.isConnected) { sbtn.disabled = false; sbtn.textContent = smSaveLabel(); }
   }
 
   apiCall('save', {
@@ -2377,8 +2423,14 @@ function serverSave(force) {
       if (smMemo) smMemo.value = '';
       setStatus('ver' + res.version + ' として保存しました（' + name + '）', 'is-ok');
       flashDone(btn, '保存しました');
-      flashDone(mbtn, 'SAVED');
-      if (sbtn && sbtn.isConnected) flashDone(sbtn, '保存しました');
+      flashDone(mbtn, '保存しました');
+      if (sbtn && sbtn.isConnected) {
+        sbtn.textContent = smSaveLabel();
+        flashDone(sbtn, 'ver' + res.version + ' として保存しました');
+        const sv = document.getElementById('smVersion');
+        if (sv) { sv.innerHTML = document.getElementById('selVersion').innerHTML; sv.value = String(res.version); }
+      }
+      flashDone(document.getElementById('headerSaveBtn'), '保存しました');
       markDirtySoon();
     })
     .catch(function(e) {
@@ -2387,22 +2439,43 @@ function serverSave(force) {
     });
 }
 
+// 「まとめて編集」を開いている間だけ、日付を選ぶチェックを出す（スマホ）
+document.getElementById('bulkFold').addEventListener('toggle', function() {
+  document.body.classList.toggle('bulk-on', this.open);
+});
+// 列の見出しをタブのすぐ下に固定するため、タブの高さを測っておく
+function measureTabs() {
+  const t = document.querySelector('.panel-tabs');
+  if (t && t.offsetHeight) document.documentElement.style.setProperty('--tabs-h', t.offsetHeight + 'px');
+}
+window.addEventListener('resize', measureTabs);
+
 /* ============================================================
   SAVE MENU — スマホの SAVE から下に出る「名前・メモ・保存・画像」
   上の Editor / Memo 欄と同じ値を使う（どちらで入れても同じ）
   ============================================================ */
+// 保存ボタンの文言：何が起きるか分かるように「ver◯ として保存」
+function smSaveLabel() { return 'ver' + ((SYNC.currentVersion || 0) + 1) + ' として保存'; }
 function openSaveMenu() {
   const wrap = document.createElement('div');
   wrap.className = 'save-menu';
   const status = document.getElementById('mobileSaveStatus');
   wrap.innerHTML =
     `<p class="sm-status${status.classList.contains('is-dirty') ? ' is-dirty' : ''}" id="smStatus">${escHtml(status.textContent)}</p>` +
-    `<label class="field"><span class="field-label">Editor</span><input type="text" id="smEditor" class="ui-input" placeholder="お名前" maxlength="20"></label>` +
-    `<label class="field"><span class="field-label">Memo</span><input type="text" id="smMemo" class="ui-input" placeholder="変更メモ（任意）" maxlength="60"></label>` +
-    `<div class="sm-actions">` +
-      `<button type="button" class="btn btn-primary" id="smSaveBtn">サーバーに保存</button>` +
-      `<button type="button" class="btn" id="smImageBtn">画像を書き出す</button>` +
-    `</div>`;
+    `<section class="sm-sec">` +
+      `<div class="sm-head"><span class="help-num">01</span>保存する<small>ほかの人も、この内容を開けるようになります</small></div>` +
+      `<label class="field"><span class="field-label">お名前（必須）</span><input type="text" id="smEditor" class="ui-input" placeholder="例：山田" maxlength="20"></label>` +
+      `<label class="field"><span class="field-label">変更メモ（任意）</span><input type="text" id="smMemo" class="ui-input" placeholder="例：11月の帯を追加" maxlength="60"></label>` +
+      `<button type="button" class="btn btn-primary sm-big" id="smSaveBtn">${smSaveLabel()}</button>` +
+    `</section>` +
+    `<section class="sm-sec">` +
+      `<div class="sm-head"><span class="help-num">02</span>画像を書き出す<small>4300×4300px の PNG。保存していない変更も画像に入ります</small></div>` +
+      `<button type="button" class="btn sm-big" id="smImageBtn">画像を書き出す</button>` +
+    `</section>` +
+    `<section class="sm-sec">` +
+      `<div class="sm-head"><span class="help-num">03</span>前の版を開く<small>保存するたびに新しい版ができ、前の版も残ります</small></div>` +
+      `<select id="smVersion" class="ui-select"></select>` +
+    `</section>`;
   const ed = wrap.querySelector('#smEditor'), memo = wrap.querySelector('#smMemo');
   const topEd = document.getElementById('editorName'), topMemo = document.getElementById('editNote');
   ed.value = topEd.value; memo.value = topMemo.value;
@@ -2411,7 +2484,15 @@ function openSaveMenu() {
   memo.addEventListener('input', function() { topMemo.value = memo.value; });
   wrap.querySelector('#smSaveBtn').onclick = function() { serverSave(); };
   wrap.querySelector('#smImageBtn').onclick = function() { saveImage(this); };
-  openSheet('SAVE', '保存・書き出し', [wrap], [], true);
+  const topVer = document.getElementById('selVersion'), ver = wrap.querySelector('#smVersion');
+  ver.innerHTML = topVer.innerHTML; ver.value = topVer.value;
+  ver.onchange = function() {
+    topVer.value = ver.value;
+    closeSheet();
+    openSelectedVersion();
+  };
+  openSheet('SAVE & EXPORT', '保存・書き出し', [wrap], [], true);
+  if (!ed.value && !window.matchMedia('(pointer: coarse)').matches) ed.focus();
 }
 
 /* ============================================================
@@ -2480,6 +2561,7 @@ document.getElementById('gatePw').focus();
 // 認証成功後に呼ばれる（applyServerState 内から）
 function buildAppUI() {
   document.body.classList.add('authed');
+  measureTabs();
   if (document.fonts && document.fonts.ready) {
     document.fonts.ready.then(() => { renderCalendar(); });
   }
