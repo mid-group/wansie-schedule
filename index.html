@@ -284,6 +284,17 @@ body:not(.bulk-on) .input-grid-header span:first-child, body:not(.bulk-on) .row-
   resize: none; overflow: hidden; display: block;
 }
 .ui-textarea { min-height: 38px; }
+.time-input[hidden] { display: none; }
+/* 帯が乗っている欄：帯の色のボタン（押すと帯の設定） */
+.band-chip {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0;
+  min-height: 32px; padding: 4px 10px; border: 1px solid; border-radius: 0; text-align: left; cursor: pointer;
+}
+.band-chip[hidden] { display: none; }
+.band-chip .bc-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 500; letter-spacing: 0.04em; }
+.band-chip .bc-title small { margin-left: 6px; font-size: 10px; font-weight: 400; opacity: 0.85; }
+.band-chip .bc-go { flex-shrink: 0; font-size: 10px; opacity: 0.75; white-space: nowrap; }
+.band-chip:hover .bc-go { opacity: 1; text-decoration: underline; }
 .deco-btn {
   height: 32px; width: 38px; border: 1px solid var(--color-line); background: #fff;
   font-family: var(--font-display); font-size: 13px; position: relative;
@@ -570,6 +581,9 @@ body:not(.authed) .mobile-savebar { display: none !important; }
 .done-ic { display: inline-block; vertical-align: -1px; margin-right: 6px; }
 
 /* スマホ用：保存メニュー（SAVE から下に出るシート） */
+.band-note { display: grid; gap: 8px; margin-bottom: 8px; }
+.band-note p { font-size: 12px; color: var(--color-text-muted); }
+.band-note .band-chip { min-height: 44px; }
 .save-menu { display: grid; gap: 14px; }
 .save-menu .sm-status { font-size: 12px; line-height: 1.6; color: var(--color-text-muted); }
 .save-menu .sm-status.is-dirty { color: var(--color-accent); }
@@ -732,6 +746,9 @@ body.entering .help-fab      { animation: riseIn 0.4s ease-out 0.3s both; }
   .input-row .day-label small { display: block; margin: 1px 0 0; font-size: 9px; }
   .input-row .deco-btn { height: 40px; width: 40px; }
   .input-row .time-input { min-height: 40px; padding: 8px; }
+  .input-row .band-chip { min-height: 40px; }
+  .band-chip .bc-go { font-size: 0; }               /* スマホは幅が狭いので「›」だけ */
+  .band-chip .bc-go::after { content: '›'; font-size: 16px; }
 
   /* 上の操作列は年・月だけ。名前・メモ・版・画像の書き出しは、画面下の「保存・書き出し」にまとめる */
   .sync-status, #headerSaveBtn { display: none; }   /* 状態は画面下のバーに出す */
@@ -1251,8 +1268,8 @@ function buildInputRows(year, month, keepTheme) {
     row.innerHTML = `
       <input type="checkbox" class="row-check" data-day="${d}" data-dow="${dow}" aria-label="${d}日を選択">
       <div class="day-label${dc}">${d}<small>${DAY_JP[dow]}</small></div>
-      <label class="io io-app"><span class="io-tag">APPAREL</span><textarea class="time-input" rows="1" id="app_${d}" placeholder="14–19 / CLOSE"></textarea></label>
-      <label class="io io-bar"><span class="io-tag">BAR</span><textarea class="time-input" rows="1" id="bar_${d}" placeholder="19–26 / CLOSE"></textarea></label>
+      <label class="io io-app"><span class="io-tag">APPAREL</span><textarea class="time-input" rows="1" id="app_${d}" placeholder="14–19 / CLOSE"></textarea><button type="button" class="band-chip" id="bandA_${d}" hidden></button></label>
+      <label class="io io-bar"><span class="io-tag">BAR</span><textarea class="time-input" rows="1" id="bar_${d}" placeholder="19–26 / CLOSE"></textarea><button type="button" class="band-chip" id="bandB_${d}" hidden></button></label>
       <button type="button" class="deco-btn" id="deco_${d}" aria-label="${d}日の装飾">Aa</button>
     `;
     cont.appendChild(row);
@@ -1264,6 +1281,50 @@ function buildInputRows(year, month, keepTheme) {
     row.querySelector('.row-check').addEventListener('change', updateSelCount);
   }
   updateSelCount();
+}
+
+/* その日の APPAREL / BAR をどの帯が使っているか（カレンダーと同じ決め方：一覧の上の帯が優先） */
+function bandOwner(d) {
+  let a = -1, b = -1;
+  eventsList().forEach((ev, i) => {
+    if (d < Number(ev.start) || d > Number(ev.end)) return;
+    if (ev.row === 'both') { if (a < 0 && b < 0) { a = i; b = i; } }
+    else if (ev.row === 'bar') { if (b < 0) b = i; }
+    else { if (a < 0) a = i; }
+  });
+  return { apparel: a, bar: b };
+}
+// 帯ボタンの文字：タイトル＋補足（例：19–24 奥新宿フェス）
+function bandChipLabel(ev) {
+  const one = t => escHtml(trimText(t).replace(/\n/g, ' '));
+  return `<span class="bc-title">${one(ev.title) || '（タイトルなし）'}` +
+         (trimText(ev.sub) ? `<small>${one(ev.sub)}</small>` : '') + `</span>`;
+}
+function bandChipStyle(ev) {
+  const bg = safeColor(ev.bg) || '#ffffff', fg = safeColor(ev.color) || '#1a1a1a', bd = safeColor(ev.border) || 'var(--color-line)';
+  return `background:${bg};color:${fg};border-color:${bd};`;
+}
+/* 帯が乗っている日は、入力欄の代わりに帯のボタンを出す（押すと帯の設定）。
+   下の営業時間の文字は消さずに残すので、帯を消すと元の表示に戻る */
+function updateBandChips() {
+  const evs = eventsList();
+  for (let d = 1; d <= daysInMonth(); d++) {
+    const own = bandOwner(d);
+    [['apparel', 'app_', 'bandA_'], ['bar', 'bar_', 'bandB_']].forEach(([row, ti, ci]) => {
+      const ta = document.getElementById(ti + d), chip = document.getElementById(ci + d);
+      if (!ta || !chip) return;
+      const i = own[row];
+      const both = i >= 0 && evs[i].row === 'both';
+      const show = i >= 0 && !(both && row === 'bar');   // 両方の行の帯は1つのボタンで2列ぶん
+      ta.hidden = i >= 0;
+      chip.hidden = !show;
+      if (!show) return;
+      const ev = evs[i];
+      chip.setAttribute('style', bandChipStyle(ev) + (both ? 'grid-column:span 2;' : ''));
+      chip.innerHTML = `${bandChipLabel(ev)}<span class="bc-go">帯を編集 ›</span>`;
+      chip.onclick = function(e) { e.preventDefault(); openEventEditor(i); };
+    });
+  }
 }
 
 /* scheduleData → 入力欄へ反映 */
@@ -1545,10 +1606,26 @@ function openDayEditor(d, focusRow) {
   if (!scheduleData['D' + d]) scheduleData['D' + d] = Object.assign({}, getDefault(curYear(), curMonth(), d));
   const s = scheduleData['D' + d];
   const els = [];
+  const own = bandOwner(d), evs = eventsList();
   ['apparel', 'bar'].forEach(row => {
     const key = ROWS[row].styleKey;
     const st = s[key] || {};
     els.push(subHead(ROWS[row].label));
+    // 帯が乗っている行は、ここで書き換えても表示されないので、帯の設定へ案内する
+    if (own[row] >= 0) {
+      const ev = evs[own[row]];
+      const box = document.createElement('div');
+      box.className = 'band-note';
+      box.innerHTML = `<p>この日の ${ROWS[row].label} は、イベント帯が表示されています。</p>`;
+      const go = document.createElement('button');
+      go.type = 'button'; go.className = 'band-chip';
+      go.setAttribute('style', bandChipStyle(ev));
+      go.innerHTML = `${bandChipLabel(ev)}<span class="bc-go">帯を編集 ›</span>`;
+      go.onclick = () => openEventEditor(own[row]);
+      box.appendChild(go);
+      els.push(box);
+      return;
+    }
     els.push(textField('テキスト（Enterで改行）', s[row], row === 'apparel' ? '14–19 / CLOSE' : '19–26 / CLOSE', v => {
       s[row] = v; syncRowInputs(d); renderCalendar();
     }));
@@ -1791,6 +1868,7 @@ function renderCalendar() {
   }
   html += '</tbody>';
   document.getElementById('calTable').innerHTML = html;
+  updateBandChips();
   fitArtboard();
   markDirtySoon();
   historyCapture();
@@ -2198,8 +2276,7 @@ function markDirtySoon() {
   clearTimeout(_dirtyTimer);
   _dirtyTimer = setTimeout(function () {
     if (SYNC.pw && hasUnsavedChanges()) {
-      const from = SYNC.currentVersion ? ('ver' + SYNC.currentVersion + ' から') : '';
-      setStatus(from + '未保存の変更あり → 保存で ver' + ((SYNC.currentVersion || 0) + 1) + ' を作成', 'is-dirty');
+      setStatus('まだ保存していない変更があります（保存すると ver' + ((SYNC.currentVersion || 0) + 1) + ' になります）', 'is-dirty');
     }
   }, 400);
 }
