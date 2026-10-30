@@ -358,6 +358,7 @@ details.fold > .fold-body { padding: 0 16px 16px; }
 .sheet-close { border: none; background: none; font-family: var(--font-display); font-size: 12px; letter-spacing: 0.2em; padding: 8px 0 8px 12px; }
 .sheet-body { flex: 1; overflow-y: auto; padding: 18px 18px 24px; -webkit-overflow-scrolling: touch; }
 .sheet-foot { flex-shrink: 0; display: flex; gap: 8px; justify-content: space-between; padding: 12px 18px calc(12px + env(safe-area-inset-bottom)); border-top: 1px solid var(--color-line); }
+.sheet-foot:empty { border-top: none; padding-top: 0; }
 
 /* ============================================================
    CALENDAR STYLES — カレンダーの見た目（書き出し画像）
@@ -505,6 +506,15 @@ body:not(.authed) .mobile-savebar { display: none !important; }
 .gate-box input:focus { outline: none; border-color: var(--color-text); }
 .gate-box button { width: 100%; height: 46px; font-size: 12px; letter-spacing: 0.3em; border: none; border-radius: 0; background: var(--color-text); color: #fff; }
 .gate-box button:disabled { opacity: 0.5; }
+/* 処理中はボタンがバーになり、左から黒く満たされる（ログイン・画像の書き出しで共通） */
+.bar-btn { position: relative; overflow: hidden; }
+.bar-btn .gb-label { position: relative; }
+.bar-btn .gb-fill { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  background: var(--color-text); color: #fff; clip-path: inset(0 100% 0 0); visibility: hidden; }
+.bar-btn.checking, .bar-btn.checking:disabled, .bar-btn.checking:hover { opacity: 1; cursor: progress; background: #e9e9e9; color: var(--color-text); }
+.bar-btn.checking .gb-fill { visibility: visible; transition: clip-path 0.2s ease-out; }
+#gateBtn.checking .gb-fill { clip-path: inset(0 12% 0 0); transition: clip-path 4s cubic-bezier(0.1, 0.65, 0.3, 1); }
+#gateBtn.checking.done .gb-fill { clip-path: inset(0 0 0 0); transition: clip-path 0.3s ease-out; }
 .gate-error { font-size: 12px; color: var(--color-accent); margin-top: 12px; min-height: 16px; }
 
 /* ============================================================
@@ -541,6 +551,36 @@ body:not(.authed) .mobile-savebar { display: none !important; }
 
 /* スマホ用固定保存バー（PCでは非表示） */
 .mobile-savebar { display: none; }
+
+/* 保存できたら一瞬「SAVED ✓」に */
+.btn.is-done, .mobile-savebar button.is-done { background: var(--color-text); color: #fff; }
+.done-ic { display: inline-block; vertical-align: -1px; margin-right: 6px; }
+
+/* スマホ用：保存メニュー（SAVE から下に出るシート） */
+.save-menu { display: grid; gap: 14px; }
+.save-menu .sm-status { font-size: 12px; line-height: 1.6; color: var(--color-text-muted); }
+.save-menu .sm-status.is-dirty { color: var(--color-accent); }
+.save-menu .field { display: grid; gap: 4px; }
+.save-menu .ui-input { width: 100%; }
+.save-menu .sm-actions { display: grid; gap: 10px; margin-top: 4px; }
+.save-menu .sm-actions .btn { width: 100%; height: 48px; font-size: 13px; letter-spacing: 0.16em; }
+
+/* スマホ用：仕上がり確認（大きく表示して、そのまま日付をタップして編集できる） */
+.pv-fab { display: none; }
+.pv-modal { position: fixed; inset: 0; z-index: 700; background: #fff; display: flex; flex-direction: column; }
+.pv-modal[hidden] { display: none; }
+.pv-modal-panel { display: flex; flex-direction: column; height: 100%; animation: sheetInB 0.18s ease-out; }
+.pv-head { display: flex; align-items: center; gap: 8px; height: 52px; padding: 0 14px; border-bottom: 1px solid var(--color-line); flex-shrink: 0; }
+.pv-head .pv-title { flex: 1; min-width: 0; font-family: var(--font-display); font-size: 11px; letter-spacing: 0.24em; }
+.pv-zoom { display: flex; border: 1px solid var(--color-line); }
+.pv-zoom button { height: 32px; padding: 0 10px; border: none; background: #fff; font-size: 11px; color: var(--color-text-muted); }
+.pv-zoom button.on { background: var(--color-text); color: #fff; }
+.pv-head .icon-btn { padding: 0 8px; }
+.pv-body { flex: 1; overflow: auto; -webkit-overflow-scrolling: touch; padding: 14px 14px calc(72vh + 20px); }
+.pv-hint { font-size: 10px; color: var(--color-text-faint); margin-bottom: 8px; }
+.pv-body .artboard-viewport { margin: 0; }
+.pv-placeholder { display: none; }
+body.pv-open .pv-placeholder { display: flex; align-items: center; justify-content: center; height: 120px; border: 1px dashed var(--color-line); font-size: 11px; color: var(--color-text-faint); }
 
 /* ============================================================
    UNDO / REDO — プレビュー上の操作バー
@@ -609,6 +649,8 @@ body.entering .help-fab      { animation: riseIn 0.4s ease-out 0.3s both; }
 @media (prefers-reduced-motion: reduce) {
   body.entering * { animation: none !important; }
   #gate.leaving { transition: none; }
+  .bar-btn .gb-fill { transition: none !important; }
+  .pv-modal-panel { animation: none; }
   .sheet-panel { animation: none; }
 }
 
@@ -701,6 +743,18 @@ body.entering .help-fab      { animation: riseIn 0.4s ease-out 0.3s both; }
   .mobile-savebar button.mb-icon:disabled { opacity: 0.3; }
 
   .help-fab { right: 14px; bottom: calc(78px + env(safe-area-inset-bottom)); width: 42px; height: 42px; font-size: 18px; }
+  /* 仕上がり確認ボタン（プレビューが画面から外れたときだけ、? の左に出る） */
+  .pv-fab {
+    display: flex; align-items: center; gap: 7px;
+    position: fixed; right: 66px; bottom: calc(78px + env(safe-area-inset-bottom)); z-index: 600;
+    height: 42px; padding: 0 16px; border-radius: 21px;
+    border: 1px solid var(--color-text); background: var(--color-text); color: #fff;
+    font-size: 12px; letter-spacing: 0.08em; box-shadow: 0 2px 10px rgba(0,0,0,0.12);
+    transition: opacity 0.2s, transform 0.2s;
+  }
+  .pv-fab.away { opacity: 0; transform: translateY(8px); pointer-events: none; }
+  body:not(.authed) .pv-fab, body.pv-open .pv-fab { display: none; }
+  body.pv-open .sheet-backdrop { background: rgba(0,0,0,0.04); }
   .preview-tools { flex-wrap: wrap; }
   .preview-tools .preview-hint { text-align: left; flex: 1 1 100%; order: 2; }
   .help-dl { grid-template-columns: 70px minmax(0, 1fr); }
@@ -719,7 +773,7 @@ body.entering .help-fab      { animation: riseIn 0.4s ease-out 0.3s both; }
     <p id="gateMsg">社内共通パスワードを入力してください</p>
     <input type="password" id="gatePw" placeholder="PASSWORD" autocomplete="current-password"
            onkeydown="if(event.key==='Enter') submitGate()">
-    <button id="gateBtn" onclick="submitGate()">OPEN</button>
+    <button id="gateBtn" class="bar-btn" onclick="submitGate()"><span class="gb-label">OPEN</span><span class="gb-fill" aria-hidden="true">CHECKING</span></button>
     <div class="gate-error" id="gateError"></div>
   </div>
 </div>
@@ -771,6 +825,7 @@ body.entering .help-fab      { animation: riseIn 0.4s ease-out 0.3s both; }
           </div>
           <p class="preview-hint" id="previewHint">日付をクリックで編集 ／ ドラッグで帯を作成</p>
         </div>
+        <div class="pv-placeholder">仕上がり確認を表示中</div>
         <div class="artboard-viewport">
           <div id="artboard">
             <div class="cal-wrapper" id="calWrapper">
@@ -905,7 +960,28 @@ body.entering .help-fab      { animation: riseIn 0.4s ease-out 0.3s both; }
   <button class="mb-icon" id="mUndoBtn" onclick="undo()" disabled aria-label="1つ戻す"><svg class="ic" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M5 3 2 6l3 3"/><path d="M2 6h7.5a4 4 0 0 1 0 8H7"/></svg></button>
   <button class="mb-icon" id="mRedoBtn" onclick="redo()" disabled aria-label="1つ進む"><svg class="ic" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="m11 3 3 3-3 3"/><path d="M14 6H6.5a4 4 0 0 0 0 8H9"/></svg></button>
   <span id="mobileSaveStatus">読み込み中…</span>
-  <button id="mobileSaveBtn" onclick="serverSave()">SAVE</button>
+  <button id="mobileSaveBtn" onclick="openSaveMenu()">SAVE</button>
+</div>
+
+<!-- スマホ用：仕上がり確認ボタン（追従）と、大きく表示する画面 -->
+<button class="pv-fab away" id="pvFab" onclick="openPreviewModal()" aria-label="仕上がりを確認">
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M1 8s2.6-5 7-5 7 5 7 5-2.6 5-7 5-7-5-7-5Z"/><circle cx="8" cy="8" r="2.2"/></svg>仕上がり
+</button>
+<div class="pv-modal" id="pvModal" hidden>
+  <div class="pv-modal-panel">
+    <div class="pv-head">
+      <span class="pv-title">PREVIEW</span>
+      <div class="pv-zoom">
+        <button type="button" id="pvFitBtn" onclick="setPreviewZoom(false)">全体</button>
+        <button type="button" id="pvZoomBtn" onclick="setPreviewZoom(true)">拡大</button>
+      </div>
+      <button class="icon-btn" id="pvUndoBtn" onclick="undo()" disabled aria-label="1つ戻す"><svg class="ic" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M5 3 2 6l3 3"/><path d="M2 6h7.5a4 4 0 0 1 0 8H7"/></svg></button>
+      <button class="sheet-close" onclick="closePreviewModal()">CLOSE</button>
+    </div>
+    <div class="pv-body" id="pvBody">
+      <p class="pv-hint">日付をタップで編集 ／ 長押ししてなぞると帯を作成</p>
+    </div>
+  </div>
 </div>
 
 <!-- 使い方ボタン（画面右下に追従） -->
@@ -922,7 +998,7 @@ body.entering .help-fab      { animation: riseIn 0.4s ease-out 0.3s both; }
       <ol class="help-flow">
         <li><b>年・月</b>を選ぶ</li>
         <li>営業時間・帯・色を<b>編集</b></li>
-        <li><b>Editor</b>に名前を入れて<b>保存</b><small>スマホは画面下の SAVE</small></li>
+        <li><b>Editor</b>に名前を入れて<b>保存</b><small>スマホは画面下の SAVE（名前・メモ・画像の書き出しもここ）</small></li>
         <li><b>画像を書き出す</b><small>4300×4300px の PNG</small></li>
       </ol>
       <p class="help-tip">間違えたら「戻す」（⌘Z ／ Ctrl+Z）。「進む」でやり直し</p>
@@ -951,6 +1027,7 @@ body.entering .help-fab      { animation: riseIn 0.4s ease-out 0.3s both; }
         <li>週をまたぐと自動で分割（続きの文字も指定可）</li>
         <li>重なったときは一覧の上の帯が優先</li>
       </ul>
+      <p class="help-tip">スマホは右下の「仕上がり」で大きく表示。そのまま日付をタップして編集できる</p>
     </section>
 
     <section class="help-sec">
@@ -1402,13 +1479,17 @@ function openSheet(eyebrow, title, bodyEls, footEls, noScroll) {
   document.getElementById('sheet').hidden = false;
   body.scrollTop = 0;
   // スマホではプレビューが見える位置へ
-  if (!noScroll && window.matchMedia('(max-width: 720px)').matches) {
+  if (!noScroll && !PV.open && window.matchMedia('(max-width: 720px)').matches) {
     const vp = document.querySelector('.artboard-viewport');
     window.scrollTo({ top: vp.getBoundingClientRect().top + window.scrollY - 60, behavior: 'smooth' });
   }
 }
 function closeSheet() { document.getElementById('sheet').hidden = true; }
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  if (!document.getElementById('sheet').hidden) closeSheet();
+  else if (PV.open) closePreviewModal();
+});
 
 function button(label, cls, onClick) {
   const b = document.createElement('button');
@@ -1713,7 +1794,7 @@ function undo() { historyFlush(); if (HIST.idx <= 0) return; HIST.idx--; history
 function redo() { historyFlush(); if (HIST.idx >= HIST.stack.length - 1) return; HIST.idx++; historyRestore(HIST.stack[HIST.idx]); }
 function updateHistoryBtns() {
   const canUndo = HIST.idx > 0 || !!HIST.timer, canRedo = HIST.idx < HIST.stack.length - 1;
-  ['undoBtn', 'mUndoBtn'].forEach(id => { const b = document.getElementById(id); if (b) b.disabled = !canUndo; });
+  ['undoBtn', 'mUndoBtn', 'pvUndoBtn'].forEach(id => { const b = document.getElementById(id); if (b) b.disabled = !canUndo; });
   ['redoBtn', 'mRedoBtn'].forEach(id => { const b = document.getElementById(id); if (b) b.disabled = !canRedo; });
 }
 // ⌘Z / Ctrl+Z（入力欄の中では通常の文字の取り消しを優先）
@@ -1820,6 +1901,7 @@ calEl.addEventListener('click', function(e) {
   if (!td) return;
   if (td.dataset.ev !== undefined) openEventEditor(parseInt(td.dataset.ev));
   else if (td.dataset.day) openDayEditor(parseInt(td.dataset.day), td.dataset.row);
+  if (PV.open) keepCellAboveSheet(td);
 });
 if (window.matchMedia('(pointer: coarse)').matches) {
   document.getElementById('previewHint').textContent = '日付をタップで編集 ／ 長押ししてなぞると帯を作成';
@@ -1831,6 +1913,9 @@ if (window.matchMedia('(pointer: coarse)').matches) {
   縮めすぎると読めないので下限を設け、それでも入らない低い画面では追従をやめて普通にスクロールさせる
   ============================================================ */
 const PREVIEW_MIN_SCALE = 0.5;
+// スマホの仕上がり確認：open＝表示中、zoom＝拡大表示（横にスクロールして見る）
+var PV = { open: false, zoom: false };
+const PV_ZOOM_SCALE = 0.8;
 function fitArtboard() {
   const vp = document.querySelector('.artboard-viewport');
   const ab = document.getElementById('artboard');
@@ -1856,6 +1941,7 @@ function fitArtboard() {
       else col.classList.add('no-sticky');
     }
   }
+  if (PV.open && PV.zoom) scale = PV_ZOOM_SCALE;
   ab.style.transform = 'scale(' + scale + ')';
   vp.style.width  = (natural * scale + 2) + 'px';
   vp.style.height = (ab.offsetHeight * scale + 2) + 'px';
@@ -1866,11 +1952,12 @@ window.addEventListener('orientationchange', function(){ setTimeout(fitArtboard,
 /* ============================================================
   SAVE AS IMAGE — カレンダーをPNG保存（4300×4300）
   ============================================================ */
-async function saveImage() {
-  const btn = document.getElementById('saveBtn');
-  btn.textContent = '書き出し中…';
-  btn.disabled = true;
-  closeSheet();
+// 押したボタンをバーにして進み具合を見せる（スマホの保存メニューから押したときは、そのボタン）
+async function saveImage(fromBtn) {
+  const btn = fromBtn || document.getElementById('saveBtn');
+  const bar = barStart(btn, '書き出し中');
+  if (!fromBtn) closeSheet();
+  await bar.to(15);
   document.body.classList.add('capturing');
 
   try {
@@ -1887,6 +1974,7 @@ async function saveImage() {
       } catch(_) {}
       await document.fonts.ready;
     }
+    await bar.to(35);
 
     const el = document.getElementById('artboard');
     el.style.transform = 'none';
@@ -1904,6 +1992,7 @@ async function saveImage() {
       width: w,
       height: h
     });
+    await bar.to(80);
     const out = document.createElement('canvas');
     out.width = targetSize; out.height = targetSize;
     const ctx = out.getContext('2d');
@@ -1916,6 +2005,9 @@ async function saveImage() {
     const m = document.getElementById('selMonth').value.toString().padStart(2, '0');
     link.download = `wansie_schedule_${y}_${m}.png`;
     link.href = out.toDataURL('image/png');
+    document.body.classList.remove('capturing');
+    fitArtboard();
+    await bar.to(100);
     link.click();
   } catch(e) {
     alert('画像の保存に失敗しました: ' + e.message);
@@ -1923,8 +2015,42 @@ async function saveImage() {
 
   document.body.classList.remove('capturing');
   fitArtboard();
-  btn.textContent = '画像を書き出す';
-  btn.disabled = false;
+  bar.end();
+}
+
+/* --- ボタンをバーにする（start → to(%) → end） --- */
+function barStart(btn, label) {
+  const orig = btn.innerHTML;
+  const safe = escHtml(label);
+  btn.classList.add('bar-btn');
+  btn.innerHTML = `<span class="gb-label">${safe}</span><span class="gb-fill" aria-hidden="true">${safe}</span>`;
+  btn.disabled = true;
+  void btn.offsetWidth;
+  btn.classList.add('checking');
+  const fill = btn.querySelector('.gb-fill');
+  return {
+    // 重い処理の前にバーが伸びきるのを待つ（書き出し中は画面が止まるため）
+    to: function(pct) {
+      fill.style.clipPath = 'inset(0 ' + (100 - pct) + '% 0 0)';
+      return new Promise(r => setTimeout(r, 220));
+    },
+    end: function() {
+      btn.classList.remove('checking', 'bar-btn');
+      btn.innerHTML = orig;
+      btn.disabled = false;
+    }
+  };
+}
+
+/* --- 保存できたら一瞬「SAVED ✓」にして戻す --- */
+const DONE_IC = '<svg class="done-ic" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2 6.5 4.8 9 10 3"/></svg>';
+function flashDone(btn, label) {
+  if (!btn) return;
+  const orig = btn.innerHTML;
+  btn.innerHTML = DONE_IC + escHtml(label);
+  btn.classList.add('is-done');
+  clearTimeout(btn._doneTimer);
+  btn._doneTimer = setTimeout(function() { btn.classList.remove('is-done'); btn.innerHTML = orig; }, 1600);
 }
 
 /* ============================================================
@@ -2004,6 +2130,8 @@ function setStatus(msg, cls) {
     el.textContent = msg;
     el.className = 'sync-status' + (cls ? ' ' + cls : '');
   }
+  const sm = document.getElementById('smStatus');
+  if (sm) { sm.textContent = msg; sm.className = 'sm-status' + ((cls === 'is-error' || cls === 'is-dirty') ? ' is-dirty' : ''); }
   const m = document.getElementById('mobileSaveStatus');
   if (m) {
     m.textContent = msg;
@@ -2048,26 +2176,34 @@ function submitGate() {
   const btn = document.getElementById('gateBtn');
   const err = document.getElementById('gateError');
   if (!pw) { err.textContent = 'パスワードを入力してください'; return; }
-  btn.disabled = true; btn.textContent = 'CHECKING…'; err.textContent = '';
+  const label = btn.querySelector('.gb-label');
+  const reset = function() { btn.disabled = false; btn.classList.remove('checking', 'done'); label.textContent = 'OPEN'; };
+  btn.disabled = true; label.textContent = 'CHECKING'; err.textContent = '';
+  void btn.offsetWidth;            // バーを 0 から伸ばすため、クラス付与前に一度描画させる
+  btn.classList.add('checking');   // 返事を待つ間はバーが 88% までゆっくり伸びる
   apiCall('auth', { pw: pw })
     .then(function(res) {
       if (!res || !res.ok) {
-        btn.disabled = false; btn.textContent = 'OPEN';
+        reset();
         err.textContent = (res && res.error) || 'エラーが発生しました';
         return;
       }
       SYNC.pw = pw;
       document.getElementById('gatePw').value = '';
-      // ゲートをふわっと消し、画面を少しずつ表示（合計0.5秒ほど。作業の邪魔をしない長さ）
-      const gate = document.getElementById('gate');
-      gate.classList.add('leaving');
-      setTimeout(function() { gate.hidden = true; gate.classList.remove('leaving'); }, 260);
-      document.body.classList.add('entering');
-      setTimeout(function() { document.body.classList.remove('entering'); }, 900);
-      applyServerState(res);
+      btn.classList.add('done');   // 残りを 0.3 秒で満たしてから開く
+      const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      setTimeout(function() {
+        // ゲートをふわっと消し、画面を少しずつ表示（合計0.5秒ほど。作業の邪魔をしない長さ）
+        const gate = document.getElementById('gate');
+        gate.classList.add('leaving');
+        setTimeout(function() { gate.hidden = true; gate.classList.remove('leaving'); reset(); }, 260);
+        document.body.classList.add('entering');
+        setTimeout(function() { document.body.classList.remove('entering'); }, 900);
+        applyServerState(res);
+      }, reduced ? 0 : 320);
     })
     .catch(function(e) {
-      btn.disabled = false; btn.textContent = 'OPEN';
+      reset();
       err.textContent = '通信エラー: ' + (e && e.message ? e.message : e);
     });
 }
@@ -2175,6 +2311,8 @@ function serverSave(force) {
   const name = document.getElementById('editorName').value.trim();
   if (!name) {
     alert('編集者のお名前（Editor）を入力してください');
+    const sm = document.getElementById('smEditor');
+    if (sm) { sm.focus(); return; }   // 保存メニューから押したときは、メニューの名前欄へ
     const n = document.getElementById('editorName');
     n.scrollIntoView({ block: 'center' }); n.focus();
     return;
@@ -2182,14 +2320,17 @@ function serverSave(force) {
   rememberEditor();
   const btn = document.getElementById('serverSaveBtn');
   const mbtn = document.getElementById('mobileSaveBtn');
+  const sbtn = document.getElementById('smSaveBtn');
   btn.disabled = true; btn.textContent = '保存中…';
   if (mbtn) { mbtn.disabled = true; mbtn.textContent = '…'; }
+  if (sbtn) { sbtn.disabled = true; sbtn.textContent = '保存中…'; }
   setStatus('保存中…', '');
   const p = collectPayloadData();
   const snapshot = JSON.stringify(p);
   function resetSaveBtns() {
     btn.disabled = false; btn.textContent = 'サーバーに保存';
     if (mbtn) { mbtn.disabled = false; mbtn.textContent = 'SAVE'; }
+    if (sbtn && sbtn.isConnected) { sbtn.disabled = false; sbtn.textContent = 'サーバーに保存'; }
   }
 
   apiCall('save', {
@@ -2232,7 +2373,12 @@ function serverSave(force) {
       fillVersionSelect(SYNC.versions);
       document.getElementById('selVersion').value = String(res.version);
       document.getElementById('editNote').value = '';
+      const smMemo = document.getElementById('smMemo');
+      if (smMemo) smMemo.value = '';
       setStatus('ver' + res.version + ' として保存しました（' + name + '）', 'is-ok');
+      flashDone(btn, '保存しました');
+      flashDone(mbtn, 'SAVED');
+      if (sbtn && sbtn.isConnected) flashDone(sbtn, '保存しました');
       markDirtySoon();
     })
     .catch(function(e) {
@@ -2240,6 +2386,82 @@ function serverSave(force) {
       setStatus('通信エラー: ' + (e && e.message ? e.message : e), 'is-error');
     });
 }
+
+/* ============================================================
+  SAVE MENU — スマホの SAVE から下に出る「名前・メモ・保存・画像」
+  上の Editor / Memo 欄と同じ値を使う（どちらで入れても同じ）
+  ============================================================ */
+function openSaveMenu() {
+  const wrap = document.createElement('div');
+  wrap.className = 'save-menu';
+  const status = document.getElementById('mobileSaveStatus');
+  wrap.innerHTML =
+    `<p class="sm-status${status.classList.contains('is-dirty') ? ' is-dirty' : ''}" id="smStatus">${escHtml(status.textContent)}</p>` +
+    `<label class="field"><span class="field-label">Editor</span><input type="text" id="smEditor" class="ui-input" placeholder="お名前" maxlength="20"></label>` +
+    `<label class="field"><span class="field-label">Memo</span><input type="text" id="smMemo" class="ui-input" placeholder="変更メモ（任意）" maxlength="60"></label>` +
+    `<div class="sm-actions">` +
+      `<button type="button" class="btn btn-primary" id="smSaveBtn">サーバーに保存</button>` +
+      `<button type="button" class="btn" id="smImageBtn">画像を書き出す</button>` +
+    `</div>`;
+  const ed = wrap.querySelector('#smEditor'), memo = wrap.querySelector('#smMemo');
+  const topEd = document.getElementById('editorName'), topMemo = document.getElementById('editNote');
+  ed.value = topEd.value; memo.value = topMemo.value;
+  ed.addEventListener('input', function() { topEd.value = ed.value; });
+  ed.addEventListener('change', rememberEditor);
+  memo.addEventListener('input', function() { topMemo.value = memo.value; });
+  wrap.querySelector('#smSaveBtn').onclick = function() { serverSave(); };
+  wrap.querySelector('#smImageBtn').onclick = function() { saveImage(this); };
+  openSheet('SAVE', '保存・書き出し', [wrap], [], true);
+}
+
+/* ============================================================
+  PREVIEW MODAL — スマホで仕上がりを大きく確認。カレンダーそのものを移して表示するので、
+  ここでも日付のタップ・長押しで帯の作成ができ、閉じると元の場所へ戻る
+  ============================================================ */
+function openPreviewModal() {
+  const vp = document.querySelector('.artboard-viewport');
+  document.getElementById('pvBody').appendChild(vp);
+  document.getElementById('pvModal').hidden = false;
+  document.body.classList.add('pv-open');
+  PV.open = true;
+  PV.zoom = true;  // はじめは押しやすい拡大表示。切り替えたら次からもそれを使う
+  try { PV.zoom = localStorage.getItem('wansie_pv_zoom') !== '0'; } catch (e) {}
+  setPreviewZoom(PV.zoom);
+  document.getElementById('pvBody').scrollTop = 0;
+}
+function closePreviewModal() {
+  closeSheet();
+  const vp = document.querySelector('.artboard-viewport');
+  document.getElementById('previewCol').appendChild(vp);
+  document.getElementById('pvModal').hidden = true;
+  document.body.classList.remove('pv-open');
+  PV.open = false;
+  fitArtboard();
+}
+function setPreviewZoom(on) {
+  PV.zoom = !!on;
+  try { localStorage.setItem('wansie_pv_zoom', PV.zoom ? '1' : '0'); } catch (e) {}
+  document.getElementById('pvFitBtn').classList.toggle('on', !PV.zoom);
+  document.getElementById('pvZoomBtn').classList.toggle('on', PV.zoom);
+  fitArtboard();
+}
+// 編集シート（画面の下 7 割）に隠れないよう、タップした日付を画面の上のほうへ
+function keepCellAboveSheet(td) {
+  const body = document.getElementById('pvBody');
+  const r = td.getBoundingClientRect(), top = body.getBoundingClientRect().top;
+  const limit = window.innerHeight * 0.28 - 10;
+  if (r.bottom > limit || r.top < top) body.scrollTop += r.top - top - 12;
+}
+// プレビューが画面に見えている間は「仕上がり」ボタンを隠す
+function updatePvFab() {
+  const r = document.getElementById('previewCol').getBoundingClientRect();
+  const headerH = document.querySelector('.page-header').offsetHeight;
+  const seen = r.bottom > headerH + 80 && r.top < window.innerHeight - 80; // カレンダーが少しでも見えていれば隠す
+  document.getElementById('pvFab').classList.toggle('away', seen);
+}
+['scroll', 'resize'].forEach(function(ev) {
+  window.addEventListener(ev, updatePvFab, { passive: true });
+});
 
 /* ============================================================
   INIT
