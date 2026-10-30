@@ -169,7 +169,7 @@ button { cursor: pointer; }
 .ui-input::placeholder, .time-input::placeholder, .ui-textarea::placeholder, #gatePw::placeholder {
   color: #cdcdcd; opacity: 1;
 }
-#selVersion { max-width: 280px; }
+#selVersion { width: 100%; }
 #editorName { width: 120px; }
 
 .btn {
@@ -188,7 +188,10 @@ button { cursor: pointer; }
 .btn-danger { border-color: var(--color-accent); color: var(--color-accent); }
 .btn-danger:hover { background: var(--color-accent); color: #fff; }
 
-.sync-status { font-size: 12px; color: var(--color-text-muted); align-self: center; padding-top: 18px; }
+.version-box { display: flex; align-items: end; gap: 14px 18px; min-width: 0; }
+.version-box .field { flex: 0 1 360px; }
+.version-box .vb-sub { margin-left: 10px; font-family: var(--font-ui); font-weight: 400; letter-spacing: 0.04em; text-transform: none; }
+.sync-status { flex: 1 1 0; min-width: 0; font-size: 12px; line-height: 1.5; color: var(--color-text-muted); padding-bottom: 10px; }
 /* 名前・メモ・版・保存・画像の書き出しは「保存・書き出し」メニューにまとめた（要素は値の受け渡し用に残す） */
 .month-picker #saveBtn, .sync-fields { display: none !important; }
 .sync-status.is-error, .sync-status.is-dirty { color: var(--color-accent); }
@@ -579,7 +582,7 @@ body:not(.authed) .mobile-savebar { display: none !important; }
 .save-menu .sm-head { font-size: 13px; font-weight: 500; letter-spacing: 0.04em; }
 .save-menu .sm-head small { display: block; margin-top: 3px; font-size: 11px; font-weight: 400; color: var(--color-text-faint); letter-spacing: 0; }
 .save-menu .sm-big { width: 100%; height: 48px; font-size: 13px; letter-spacing: 0.12em; }
-.save-menu .ui-select { width: 100%; }
+.save-menu .sm-foot { padding-top: 16px; border-top: 1px solid var(--color-line); font-size: 11px; line-height: 1.6; color: var(--color-text-faint); }
 
 /* スマホ用：仕上がり確認（大きく表示して、そのまま日付をタップして編集できる） */
 .pv-fab { display: none; }
@@ -731,7 +734,9 @@ body.entering .help-fab      { animation: riseIn 0.4s ease-out 0.3s both; }
   .input-row .time-input { min-height: 40px; padding: 8px; }
 
   /* 上の操作列は年・月だけ。名前・メモ・版・画像の書き出しは、画面下の「保存・書き出し」にまとめる */
-  .sync-status, #headerSaveBtn { display: none; }
+  .sync-status, #headerSaveBtn { display: none; }   /* 状態は画面下のバーに出す */
+  .version-box .field { flex: 1 1 100%; }
+  .version-box .vb-sub { display: block; margin: 3px 0 0; }
   .control-strip { padding-bottom: 14px; margin-bottom: 14px; }
   /* プレビューは「見る」用。タップすると大きく表示して編集（戻す・進むは画面下のバーにある） */
   .preview-tools .history-btns { display: none; }
@@ -834,12 +839,15 @@ body.entering .help-fab      { animation: riseIn 0.4s ease-out 0.3s both; }
         <button class="btn" id="saveBtn" onclick="saveImage()">画像を書き出す</button>
       </div>
       <div class="sync-fields">
-        <label class="field wide"><span class="field-label">Version</span><select id="selVersion" class="ui-select" onchange="openSelectedVersion()"></select></label>
         <label class="field"><span class="field-label">Editor</span><input type="text" id="editorName" class="ui-input" placeholder="お名前" maxlength="20"></label>
         <label class="field grow"><span class="field-label">Memo</span><input type="text" id="editNote" class="ui-input" placeholder="変更メモ（任意）" maxlength="60"></label>
         <button class="btn btn-primary" id="serverSaveBtn" onclick="serverSave()">サーバーに保存</button>
       </div>
-      <span class="sync-status" id="syncStatus">読み込み中…</span>
+      <!-- 表示中の版。ここから前の版も開ける -->
+      <div class="version-box">
+        <label class="field"><span class="field-label">Version<span class="vb-sub">表示中の版 ／ ここから前の版を開けます</span></span><select id="selVersion" class="ui-select" onchange="openSelectedVersion()"></select></label>
+        <span class="sync-status" id="syncStatus">読み込み中…</span>
+      </div>
     </div>
 
     <div class="workspace">
@@ -1070,7 +1078,7 @@ body.entering .help-fab      { animation: riseIn 0.4s ease-out 0.3s both; }
       <div class="help-head"><span class="help-num">05</span>みんなで使うとき</div>
       <ul class="help-list">
         <li>保存するたびに<b>新しい版</b>になる（上書きされない）</li>
-        <li>間違えたら「保存・書き出し」の「前の版を開く」で戻し、もう一度保存</li>
+        <li>間違えたら、画面上の<b>Version</b>で前の版を開き、もう一度保存</li>
         <li>「先に保存しています」と出たら<b>キャンセル</b>で最新を読み込み直す</li>
         <li>1つの月は1人が担当すると安心</li>
       </ul>
@@ -2281,11 +2289,13 @@ function fillVersionSelect(list) {
     sel.appendChild(o);
     return;
   }
+  const latest = Math.max.apply(null, list.map(v => v.version));
   list.forEach(function(v) {
     const o = document.createElement('option');
     o.value = String(v.version);
-    o.textContent = 'ver' + v.version + '  ' + fmtDate(new Date(v.timestamp)) + '  ' +
-                    (v.editor || '') + (v.note ? '  « ' + v.note : '');
+    o.textContent = 'ver' + v.version + '・' + fmtDate(new Date(v.timestamp)) + '・' +
+                    (v.editor || '不明') + (v.note ? '（' + v.note + '）' : '') +
+                    (v.version === latest ? '［最新］' : '');
     sel.appendChild(o);
   });
 }
@@ -2427,8 +2437,6 @@ function serverSave(force) {
       if (sbtn && sbtn.isConnected) {
         sbtn.textContent = smSaveLabel();
         flashDone(sbtn, 'ver' + res.version + ' として保存しました');
-        const sv = document.getElementById('smVersion');
-        if (sv) { sv.innerHTML = document.getElementById('selVersion').innerHTML; sv.value = String(res.version); }
       }
       flashDone(document.getElementById('headerSaveBtn'), '保存しました');
       markDirtySoon();
@@ -2472,10 +2480,7 @@ function openSaveMenu() {
       `<div class="sm-head"><span class="help-num">02</span>画像を書き出す<small>4300×4300px の PNG。保存していない変更も画像に入ります</small></div>` +
       `<button type="button" class="btn sm-big" id="smImageBtn">画像を書き出す</button>` +
     `</section>` +
-    `<section class="sm-sec">` +
-      `<div class="sm-head"><span class="help-num">03</span>前の版を開く<small>保存するたびに新しい版ができ、前の版も残ります</small></div>` +
-      `<select id="smVersion" class="ui-select"></select>` +
-    `</section>`;
+    `<p class="sm-foot">前の版は、画面上の「Version」から開けます（保存するたびに新しい版ができ、前の版も残ります）</p>`;
   const ed = wrap.querySelector('#smEditor'), memo = wrap.querySelector('#smMemo');
   const topEd = document.getElementById('editorName'), topMemo = document.getElementById('editNote');
   ed.value = topEd.value; memo.value = topMemo.value;
@@ -2484,13 +2489,6 @@ function openSaveMenu() {
   memo.addEventListener('input', function() { topMemo.value = memo.value; });
   wrap.querySelector('#smSaveBtn').onclick = function() { serverSave(); };
   wrap.querySelector('#smImageBtn').onclick = function() { saveImage(this); };
-  const topVer = document.getElementById('selVersion'), ver = wrap.querySelector('#smVersion');
-  ver.innerHTML = topVer.innerHTML; ver.value = topVer.value;
-  ver.onchange = function() {
-    topVer.value = ver.value;
-    closeSheet();
-    openSelectedVersion();
-  };
   openSheet('SAVE & EXPORT', '保存・書き出し', [wrap], [], true);
   if (!ed.value && !window.matchMedia('(pointer: coarse)').matches) ed.focus();
 }
